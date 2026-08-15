@@ -1,0 +1,45 @@
+﻿STORDIAG.R4X
+============
+
+STORDIAG.R4X ist die Storage- und Blockdevice-Diagnose.
+Seit 0.53.14 prueft es zusaetzlich die produktive Blockdevice-Request-Queue:
+Queue-High-Water, gequeueute/dequeueute Requests, Completion-Waits,
+Completion-Timeouts und maximale Completion-Latenz pro Blockdevice.
+Seit 0.53.41 verlangt die Queue-Baseline mindestens ein aktives I/O-Device
+mit Queue-/Completion-Zaehlern, akzeptiert aber registrierte, noch idle
+Backends wie `EXAMPLE-STOR` als gueltige Treiber-Registry-Sicht.
+Seit 0.53.42 prueft `STORDIAG queue` zusaetzlich die produktive
+Storage-Driver-Completion: der `block-work`-Worker muss laufen, Runtime-
+Requests und Completions muessen steigen, Completion-Signale muessen sichtbar
+sein und Boot-Inline-Requests bleiben als Fruehbootgrenze gezaehlt.
+Seit 0.53.27 prueft es zusaetzlich den Backing-Store-Vertrag ohne Pager:
+eine ueber R4SYS-Stream-I/O erzeugte 64-KB-Datei muss als FAT32-backed
+Reserve-Kandidat sichtbar sein, waehrend fehlende Dateien als Blocker
+gezaehlt werden und kein zweiter Block-I/O-Pfad entsteht.
+Seit 0.53.28 prueft es zusaetzlich den Slot-/Range-Vertrag ohne aktive
+Eviction: Reserve, Error-Mark, Recovery und Release muessen ueber denselben
+Backing-Store sichtbar sein, waehrend Page-In/Page-Out deaktiviert bleiben.
+Seit 0.53.29 prueft es zusaetzlich den Pager-Gate-Vertrag ohne Page-I/O:
+R4X-VM-Commit wird gegen Backing-Store-Slots getestet, die Reservierung wird
+sofort zurueckgerollt und es entsteht kein zweiter Block-I/O-Pfad.
+
+Projektstruktur seit 0.51.21:
+- `build.zig` baut die Diagnose als eigenes SDK-Projekt.
+- `build.zig.zon` bindet `r4os_sdk` als Paket.
+- `module.R4MF` beschreibt Artefakt, Zielpfad, R4L-Imports und Contract.
+
+Build:
+
+    cd Code\System\Diagnostics\StorageDiag
+    ..\..\..\DevTools\Zig\zig.exe build
+
+Ergebnis:
+
+    Code\System\Diagnostics\StorageDiag\zig-out\STORDIAG.R4X
+
+Contract:
+- Build-Profil: `Zig/R4XStart`
+- R4XStart-Entry: `stordiag_main`
+- App-Klasse: `console`
+- R4L-Imports: `R4SYS`, `R4DEV`
+- Zielpfad im Image: `C:\R4OS\SOFTWARE\TERMINAL\DIAG\STORDIAG.R4X`
