@@ -796,6 +796,10 @@ const App = struct {
 
         var checked: u32 = 0;
         var active: u32 = 0;
+        var nvme_devices: u32 = 0;
+        var nvme_worker_requests: u64 = 0;
+        var nvme_worker_completions: u64 = 0;
+        var nvme_timeouts: u64 = 0;
         var index: u32 = 0;
         while (index < summary.storage_device_count and index < 8) : (index += 1) {
             const info = self.dev.performanceStorage(index) orelse {
@@ -806,9 +810,29 @@ const App = struct {
             self.printStoragePerformance(info);
             if (storagePerformanceActive(info)) active += 1;
             if (!storagePerformanceOk(info)) ok = false;
+            if (info.bus == r4os.abi.storage_backend_bus_nvme) {
+                nvme_devices += 1;
+                nvme_worker_requests +%= info.worker_requests;
+                nvme_worker_completions +%= info.worker_completions;
+                nvme_timeouts +%= info.completion_timeouts;
+            }
         }
 
-        return ok and checked != 0 and active != 0;
+        const nvme_runtime_ok = nvme_devices != 0 and nvme_worker_requests != 0 and
+            nvme_worker_completions != 0 and nvme_timeouts == 0;
+        self.sys.write("STORDIAG NVMe runtime: ");
+        self.sys.write(if (nvme_runtime_ok) "OK" else "FAILED");
+        self.sys.write(" devices=");
+        self.sys.printU64(nvme_devices);
+        self.sys.write(" work=");
+        self.sys.printU64(nvme_worker_requests);
+        self.sys.write("/");
+        self.sys.printU64(nvme_worker_completions);
+        self.sys.write(" timeouts=");
+        self.sys.printU64(nvme_timeouts);
+        self.sys.println("");
+
+        return ok and checked != 0 and active != 0 and nvme_runtime_ok;
     }
 
     fn writeBackingStoreFile(self: *App, path: [*:0]const u8, total_bytes: u64) bool {

@@ -4,7 +4,7 @@
 
 ## Package
 
-- Version: `0.1.1`
+- Version: `0.1.2`
 - Image target: `/R4OS/SOFTWARE/TERMINAL/DIAG/STORDIAG.R4X`
 - Image scope: `test`
 - Canonical project manifest: `module.R4MF`

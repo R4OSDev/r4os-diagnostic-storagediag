@@ -12,6 +12,11 @@ Seit 0.53.42 prueft `STORDIAG queue` zusaetzlich die produktive
 Storage-Driver-Completion: der `block-work`-Worker muss laufen, Runtime-
 Requests und Completions muessen steigen, Completion-Signale muessen sichtbar
 sein und Boot-Inline-Requests bleiben als Fruehbootgrenze gezaehlt.
+Seit 0.75.14 fasst `STORDIAG NVMe runtime` die Runtime-Worker-Requests und
+-Completions aller NVMe-Backends zusammen und verlangt einen aktiven,
+timeoutfreien Pfad. Der kurze SMP4-Test liefert davor genau eine read-only
+NVMe-Anfrage; der Treiber-Marker belegt getrennt, dass deren CQ per MSI/MSI-X
+und nicht durch Polling sichtbar wurde.
 Seit 0.53.27 prueft es zusaetzlich den Backing-Store-Vertrag ohne Pager:
 eine ueber R4SYS-Stream-I/O erzeugte 64-KB-Datei muss als FAT32-backed
 Reserve-Kandidat sichtbar sein, waehrend fehlende Dateien als Blocker
@@ -28,14 +33,13 @@ Projektstruktur seit 0.51.21:
 - `build.zig.zon` bindet `r4os_sdk` als Paket.
 - `module.R4MF` beschreibt Artefakt, Zielpfad, R4L-Imports und Contract.
 
-Build:
+Build unter Windows beziehungsweise Linux:
 
-    cd Code\System\Diagnostics\StorageDiag
-    ..\..\..\DevTools\Zig\zig.exe build
+    Build.bat
+    ./Build.sh
 
-Ergebnis:
-
-    Code\System\Diagnostics\StorageDiag\zig-out\STORDIAG.R4X
+Das kanonische Artefaktziel steht in `module.R4MF`; der Workspace-Build legt
+es unter `Artifacts/Modules/StorageDiag/STORDIAG.R4X` ab.
 
 Contract:
 - Build-Profil: `Zig/R4XStart`
