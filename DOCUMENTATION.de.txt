@@ -1,7 +1,7 @@
 ﻿STORDIAG.R4X
 ============
 
-Stand 0.83.2 / Modul 0.1.3
+Stand 0.90.81 / Modul 0.1.6
 
 Controller-/Geraeteinventar, gemountete Laufwerke und Hardware-Dateiprobe. Kernel-Queue-, Completion-, Backing-Store- und Pagerpruefungen liegen jetzt unter SPECTRA CHECK STORAGE.
 
@@ -11,3 +11,8 @@ Unter Windows den entsprechenden Build.bat-Starter verwenden.
 Artefakt: Artifacts/Modules/StorageDiag/STORDIAG.R4X
 Manifest: Repositories/Diagnostics/StorageDiag/module.R4MF.
 App-Entry r4_app_main, Konsole ueber normales R4SYS/STDIO.
+
+Generation2 seit0.90.81 / Modul 0.1.6:
+Echter App2-Einstieg und R4XStart2:2, ausschliesslich Query2:2-Imports.
+Gemeinsame SDK-Fachhelfer und genaue Fehler-/Frist-/Besitzergrenzen stehen
+in README.md; die urspruenglichen unabhaengigen Fachorakel bleiben erhalten.

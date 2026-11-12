@@ -23,13 +23,17 @@ const StorageScan = struct {
 };
 
 const App = struct {
+    app: *r4os.App2,
     sys: r4os.r4sys.Context,
     dev: r4os.r4dev.Context,
+    files: r4os.Files,
 
-    fn init(r4_app: *r4os.App) ?App {
+    fn init(r4_app: *r4os.App2) ?App {
         return .{
+            .app = r4_app,
             .sys = r4_app.system(),
             .dev = r4_app.devicesLowLevel() orelse return null,
+            .files = r4_app.files() orelse return null,
         };
     }
 
@@ -68,27 +72,30 @@ const App = struct {
     }
 
     fn checkStorageInventory(self: *App) ?bool {
-        var summary: r4os.abi.DeviceInventorySummary = .{};
-        if (self.dev.deviceInventorySummary(&summary) <= 0) {
-            self.sys.println("STORDIAG inventory: FAILED not available");
-            return null;
-        }
-
-        var scan = StorageScan{
-            .summary_total = summary.total,
-            .truncated = summary.truncated != 0,
-        };
-
-        var index: u32 = 0;
-        while (index < summary.total) : (index += 1) {
-            var rec: r4os.abi.DeviceInventoryRecord = .{};
-            if (self.dev.deviceInventoryRecord(index, &rec) <= 0) continue;
+        const provider = self.app.deviceSnapshotProvider() catch return null;
+        var sizing = r4os.device_snapshot.Snapshot.init(.{}, 0, provider) catch return null;
+        defer _ = sizing.close() catch {};
+        const needed = sizing.capture(false) catch return null;
+        if (needed.status != @intFromEnum(r4os.device_snapshot.Status.capacity) and
+            needed.status != @intFromEnum(r4os.device_snapshot.Status.complete)) return null;
+        const allocator = self.app.allocator() orelse return null;
+        const records = allocator.alloc(r4os.abi.DeviceInventoryRecord, needed.info.required_count) catch return null;
+        defer allocator.free(records);
+        const bytes = @import("std").mem.sliceAsBytes(records);
+        var snapshot = r4os.device_snapshot.Snapshot.init(.{ .address = @intFromPtr(bytes.ptr), .length = bytes.len }, @intCast(records.len), provider) catch return null;
+        defer _ = snapshot.close() catch {};
+        const captured = snapshot.capture(false) catch return null;
+        // A changed capacity or incomplete capture never becomes a partial
+        // success. All original storage-owner checks use this one epoch.
+        if (captured.status != @intFromEnum(r4os.device_snapshot.Status.complete)) return null;
+        var scan = StorageScan{ .summary_total = captured.info.count };
+        for (records[0..captured.info.count], 0..) |rec, index| {
             if (rec.bus != bus_storage) {
                 self.countStorageController(&scan, rec);
                 continue;
             }
             scan.storage_records += 1;
-            self.printStorageRecord(index, rec);
+            self.printStorageRecord(@intCast(index), rec);
             self.countStorageRecord(&scan, rec);
         }
 
@@ -222,12 +229,18 @@ const App = struct {
     }
 
     fn checkFileSmoke(self: *App) bool {
-        const config = self.sys.fileInfo("C:\\R4OS\\CONFIG\\VERSION.R4S");
-        const autoexec = self.sys.fileInfo("C:\\AUTOEXEC.BAT");
+        const version_path = r4os.AbsoluteFilePath.parse("C:\\R4OS\\CONFIG\\VERSION.R4S") catch return false;
+        const autoexec_path = r4os.AbsoluteFilePath.parse("C:\\AUTOEXEC.BAT") catch return false;
+        const missing_path = r4os.AbsoluteFilePath.parse("C:\\__STORDIAG_MISSING__.BIN") catch return false;
+        const config = self.files.metadata(version_path.asZ());
+        const autoexec = self.files.metadata(autoexec_path.asZ());
         var buffer: [128]u8 = undefined;
-        const read = self.sys.fileReadAt("C:\\R4OS\\CONFIG\\VERSION.R4S", 0, buffer[0..]);
-        const missing = self.sys.fileInfo("C:\\__STORDIAG_MISSING__.BIN");
-        const ok = fileExists(config) and fileExists(autoexec) and read > 0 and !fileExists(missing);
+        const read: i32 = switch (self.files.readDocumentPrefix(version_path.asZ(), &buffer, .{ .kind = r4os.abi.timeout_kind_finite, .nanoseconds = 1_000_000_000 })) {
+            .value => |value| @intCast(value.bytes),
+            .failure => |code| code,
+        };
+        const missing = self.files.metadata(missing_path.asZ());
+        const ok = fileExists(config) and fileExists(autoexec) and read > 0 and missing == .missing;
 
         self.sys.write("STORDIAG file smoke: ");
         self.sys.write(if (ok) "OK" else "FAILED");
@@ -236,17 +249,18 @@ const App = struct {
         self.sys.println("");
         return ok;
     }
-
 };
 
-pub fn r4_app_main(r4_app: *r4os.App) i32 {
+pub fn r4_app_main(r4_app: *r4os.App2) i32 {
     var app = App.init(r4_app) orelse return r4os.abi.err_no_group;
     return app.run();
 }
 
-fn fileExists(info: ?r4os.abi.FileInfo) bool {
-    if (info) |value| return value.exists != 0;
-    return false;
+fn fileExists(info: r4os.metadata2.InfoResult) bool {
+    return switch (info) {
+        .found => |value| value.flags & r4os.abi.file_metadata2_flag_exists != 0 and value.flags & r4os.abi.file_metadata2_flag_directory == 0,
+        else => false,
+    };
 }
 
 fn flagName(flags: u32, bit: u32) []const u8 {

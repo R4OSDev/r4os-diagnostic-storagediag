@@ -4,7 +4,7 @@
 
 ## Package
 
-- Version: `0.1.2`
+- Version: `0.1.6`
 - Image target: `/R4OS/SOFTWARE/TERMINAL/DIAG/STORDIAG.R4X`
 - Image scope: `test`
 - Canonical project manifest: `module.R4MF`
@@ -38,3 +38,7 @@ Detailed German technical notes from the migration are preserved in
 Original R4OS material is licensed under Apache License 2.0. See `LICENSE`
 and `NOTICE`. Any repository-specific external material is documented in
 `THIRD_PARTY_NOTICES.md`.
+
+## Generation 2
+
+The normal Start2/Query2 diagnostic captures one complete copied device inventory before counting physical storage owners. Capacity or restart failures never become an empty success. Full file metadata distinguishes missing paths from provider failures; the bounded configuration-file prefix uses the shared stream helper. Original AHCI/NVMe/ATA/USB ownership and C:/D: checks remain conditional on actual hardware.
